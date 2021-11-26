@@ -11,6 +11,10 @@ workflow
       // response: { status: 'started' },
     }),
     async () => {
+      if (Math.random() < 0.5) {
+        throw new Error('Forced an error');
+      }
+      await workflow.use('EmailExample')?.trigger('sendEmail', { ok: true }, { delay: 1000 });
       return {
         response: 'OK',
       };
