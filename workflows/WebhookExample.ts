@@ -1,3 +1,4 @@
+import Slack from '@wallflow/plugins/Slack';
 import WebHook from '@wallflow/plugins/WebHook';
 
 workflow
@@ -19,4 +20,11 @@ workflow
         response: 'OK',
       };
     },
-  );
+  )
+  .onError((job: Job, error: Error) => {
+    Slack.chat.postMessage({
+      channel: '@alejandro',
+      mrkdwn: true,
+      text: `Error processing job <http://localhost:8080/ui/queue/TestWorkflow?status=failed|#${job.id}>:\n \`\`\`Job: ${job.name}\nError: ${error.message}\`\`\``,
+    });
+  });
