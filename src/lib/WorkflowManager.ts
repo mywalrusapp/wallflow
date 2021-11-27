@@ -41,15 +41,17 @@ export abstract class WorkflowManager {
 
     //TODO: move this out to its own static class
     if (bullBoard?.enabled) {
+      const bullBoardBasePath = bullBoard.basePath ?? '/ui';
+      const bullBoardPort = bullBoard.port ?? 8080;
       const serverAdapter = new FastifyAdapter();
-      serverAdapter.setBasePath(bullBoard.basePath ?? '/ui');
+      serverAdapter.setBasePath(bullBoardBasePath);
 
       this.webServer = fastify();
-      this.webServer.register(serverAdapter.registerPlugin(), { basePath: '/', prefix: '/ui' });
+      this.webServer.register(serverAdapter.registerPlugin(), { basePath: '/', prefix: bullBoardBasePath });
       this.bullBoard = createBullBoard({ queues: [], serverAdapter });
 
-      await this.webServer.listen(bullBoard?.port ?? 8080);
-      console.info(`🎯 BullBoard running on http://localhost:${bullBoard.port}`);
+      await this.webServer.listen(bullBoardPort);
+      console.info(`🎯 BullBoard running on http://localhost:${bullBoardPort}${bullBoardBasePath}`);
     }
 
     await Watcher.watch(workflowsPath, ['.ts'], async (filename) => {
