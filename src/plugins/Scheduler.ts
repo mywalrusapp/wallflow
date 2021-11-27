@@ -1,40 +1,52 @@
 import { DeclarePlugin, PluginBase } from '../lib/PluginBase';
 import { Workflow } from '../lib/Workflow';
 
-interface SchedulerOptions {
+interface SchedulerCronOptions {
+  type: 'cron';
   /**
-   * A cron pattern
+   * A cron pattern to trigger jobs.
+   * See https://crontab.guru/ for easier scheduling
    */
-  cron?: string;
+  pattern: string;
   /**
-   * Timezone
+   * The Timezone used to trigger the jobs.
    */
   tz?: string;
   /**
-   * Start date when the repeat job should start repeating (only with `cron`).
+   * The start date when the trigger should start triggering jobs (works only with `cron`).
    */
-  startDate?: Date | string | number;
+  startDate?: Date | string;
   /**
-   * End date when the repeat job should stop repeating.
+   * The end date when the trigger should stop triggering jobs.
    */
-  endDate?: Date | string | number;
-  /**
-   * Number of times the job should repeat at max.
-   */
-  limit?: number;
+  endDate?: Date | string;
+}
+
+interface SchedulerIntervalOptions {
+  type: 'interval';
   /**
    * Repeat after this amount of milliseconds
    * (`cron` setting cannot be used together with this setting.)
    */
-  every?: number;
+  every: number;
   /**
    * Repeated job should start right now
-   * ( work only with every settings)
+   * ( work only with `every` option)
    */
   immediately?: boolean;
-
-  data?: unknown;
 }
+
+type SchedulerOptions = (SchedulerCronOptions | SchedulerIntervalOptions) & {
+  /**
+   * Max number of jobs the trigger will emit
+   */
+  limit?: number;
+
+  /**
+   * Data to be passed on to the job triggered by the schedule trigger
+   */
+  data?: unknown;
+};
 
 class Scheduler extends PluginBase {
   protected async addTrigger(workflow: Workflow, triggerId: string, { data, ...options }: SchedulerOptions) {

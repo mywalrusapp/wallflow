@@ -1,24 +1,57 @@
-import { PluginBase, DeclarePlugin } from '../lib/PluginBase';
 import Fastify, { FastifyReply, FastifyRequest } from 'fastify';
+import { DeclarePlugin, PluginBase } from '../lib/PluginBase';
 import { Workflow } from '../lib/Workflow';
 
 interface BearerTokenAuth {
+  /**
+   * Sets the type of authentication of the webhook to use [Bearer token](https://oauth.net/2/bearer-tokens)
+   */
   type: 'bearer';
+  /**
+   * The token value to use when using Bearer token authentication
+   */
   token: string;
 }
 interface BasicAuth {
+  /**
+   * Sets the type of authentication of the webhook to use [Basic auth](https://www.ibm.com/docs/en/cics-ts/5.3)
+   */
   type: 'basic';
+  /**
+   * The realm to displays a description of the protected area
+   */
   realm?: string;
+  /**
+   * The username to use to enable access to the endpoint.
+   */
   username: string;
+  /**
+   * The password to use to enable access to the endpoint.
+   */
   password: string;
 }
 
 interface WebHookTriggerOptions {
-  path?: string;
+  /**
+   * Sets the path of the webhook trigger
+   */
+  path: string;
+  /**
+   * Sets the REST method of the webhook trigger. Defaults to `GET`.
+   */
   method?: string;
+  /**
+   * When set, enables authentication using the provided options.
+   */
   auth?: BearerTokenAuth | BasicAuth;
-  wait?: boolean;
+  /**
+   * A static object that will be used as the response.
+   */
   response?: unknown;
+  /**
+   * When `true`, the request will wait for the job to finish before responding.
+   */
+  wait?: boolean;
 }
 
 export interface WebHookData<B = FastifyRequest['body'], Q = FastifyRequest['query'], P = FastifyRequest['params']> {
@@ -52,7 +85,7 @@ class WebHook extends PluginBase {
 
   private checkAuth(req: FastifyRequest, res: FastifyReply, authOptions: BearerTokenAuth | BasicAuth) {
     const authHeader = req.headers.authorization;
-    const [tokenType = '', tokenValue = ''] = authHeader ? authHeader?.split(' ') : [];
+    const [tokenType = '', tokenValue = ''] = authHeader ? authHeader.split(' ') : [];
 
     switch (authOptions.type) {
       // validate bearer token authentication if configured
@@ -111,7 +144,7 @@ class WebHook extends PluginBase {
         headers: req.headers,
         method: req.method,
       },
-      { wait: route.options?.wait }
+      { wait: route.options?.wait },
     );
 
     // if the route trigger has the wait flag, then wait for the job to finish
@@ -126,12 +159,12 @@ class WebHook extends PluginBase {
         code: '200',
         message: 'workflow job triggered',
         data: { triggerId: route.triggerId },
-      }
+      },
     );
   }
 
   protected async addTrigger(workflow: Workflow, triggerId: string, options?: WebHookTriggerOptions) {
-    const path = `/${options?.path ?? triggerId}`;
+    const path = `${options?.path.startsWith('/') ? options.path : `/${options?.path}` ?? triggerId}`;
     const method = (options?.method ?? 'GET').toUpperCase();
     if (!['GET', 'PUT', 'POST', 'DELETE', 'PATCH'].includes(method)) {
       throw new Error(`WebHook error: method "${method}" not supported`);

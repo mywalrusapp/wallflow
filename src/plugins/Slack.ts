@@ -4,10 +4,16 @@ import { Workflow } from '../lib/Workflow';
 
 interface SlackBotMessage {
   type: 'message';
+  /**
+   * Listen to only `message` events using a string or RegExp
+   */
   message: string | RegExp;
 }
 interface SlackBotEvent {
   type: 'event';
+  /**
+   * Listen for an event from the Events API
+   */
   event: {
     type?: string | RegExp;
     subType?: string;
@@ -15,22 +21,37 @@ interface SlackBotEvent {
 }
 interface SlackBotAction {
   type: 'action';
+  /**
+   * Listen for an action from a Block Kit element (buttons, select menus, date pickers, etc)
+   */
   action: string | RegExp;
 }
 interface SlackBotShortcut {
   type: 'shortcut';
+  /**
+   * Listen for a global or message shortcuts
+   */
   shortcut: string | RegExp;
 }
 interface SlackBotCommand {
   type: 'command';
+  /**
+   * Listen for slash commands
+   */
   command: string | RegExp;
 }
 interface SlackBotViewSubmission {
   type: 'view';
+  /**
+   * Listen for view_submission modal events
+   */
   callbackId: string | RegExp;
 }
 interface SlackBotOptions {
   type: 'options';
+  /**
+   * Listen for options requests (from select menus with an external data source)
+   */
   action: string | RegExp;
 }
 
