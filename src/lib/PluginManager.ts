@@ -1,5 +1,5 @@
-import path from 'path';
 import fse from 'fs-extra';
+import path from 'path';
 
 interface PluginManagerOptions {
   pluginsPaths: string[];
