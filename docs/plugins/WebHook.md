@@ -29,7 +29,7 @@ WEBHOOKS_PORT=8085
 ### Usage
 
 ```typescript
-import WebHook from '@wallflow/plugins/WebHook';
+import WebHook from 'wallflow/plugins/WebHook';
 
 workflow
   .register('WebhookExample')

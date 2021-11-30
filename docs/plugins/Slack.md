@@ -31,7 +31,7 @@ SLACK_APP_TOKEN=
 ### Usage
 
 ```typescript
-import Slack, { SlackResponse } from '@wallflow/plugins/Slack';
+import Slack, { SlackResponse } from 'wallflow/plugins/Slack';
 
 workflow
   .register('SlackExample')

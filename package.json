@@ -4,7 +4,10 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "nodemon -w src -x ts-node ./src/index.ts"
+    "start": "nodemon -w src -x ts-node ./src/index.ts",
+    "clean": "rm -rf dist/*",
+    "build": "yarn clean && tsc && mkdir -p dist/core && cp src/core/index.d.ts dist/core/index.d.ts",
+    "release": "yarn build && ln -s package.json dist && yarn --cwd dist publish"
   },
   "devDependencies": {
     "@types/fs-extra": "^9.0.13",

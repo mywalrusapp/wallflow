@@ -9,8 +9,8 @@ TBD
 ### Usage
 
 ```typescript
-import HttpRequest from '@wallflow/plugins/HttpRequest';
-import WebHook, { WebHookData } from '@wallflow/plugins/WebHook';
+import HttpRequest from 'wallflow/plugins/HttpRequest';
+import WebHook, { WebHookData } from 'wallflow/plugins/WebHook';
 
 workflow
   .register('HttpRequestExample')

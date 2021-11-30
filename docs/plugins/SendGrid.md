@@ -12,7 +12,7 @@ See [SendGrid Mail Send API](https://docs.sendgrid.com/api-reference/mail-send/m
 ### Usage
 
 ```typescript
-import SendGrid from '@wallflow/plugins/SendGrid';
+import SendGrid from 'wallflow/plugins/SendGrid';
 
 workflow
   .register('EmailExample')

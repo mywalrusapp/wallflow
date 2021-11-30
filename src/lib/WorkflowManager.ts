@@ -21,12 +21,12 @@ interface WorkflowManagerOptions {
 const contextDefaults = {
   sleep: (delay: number) => new Promise((resolve) => setTimeout(resolve, delay)),
   require: (path: string) => {
-    if (path.startsWith('@wallflow/core')) {
+    if (path.startsWith('wallflow/core')) {
       return {};
-    } else if (!path.startsWith('@wallflow/plugins/')) {
+    } else if (!path.startsWith('wallflow/plugins/')) {
       throw new Error(`Module "${path}" is not permitted: Only plugins can be imported in workflows.`);
     }
-    return PluginManager.use(path.replace(/^@wallflow\/plugins\//, ''));
+    return PluginManager.use(path.replace(/^wallflow\/plugins\//, ''));
   },
   exports: {},
   console,

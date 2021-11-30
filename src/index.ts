@@ -1,9 +1,11 @@
 import dotenv from 'dotenv';
 import path from 'path';
-import packageJson from '../package.json';
 import { MessageManager } from './lib/MessageManager';
 import { PluginManager } from './lib/PluginManager';
 import { WorkflowManager } from './lib/WorkflowManager';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const packageJson = require('../package.json');
 
 dotenv.config();
 

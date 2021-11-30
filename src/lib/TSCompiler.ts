@@ -1,11 +1,17 @@
 import path from 'path';
 import ts from 'typescript';
-import tsConfig from '../../tsconfig.json';
 
 export abstract class TSCompiler {
   public static compile(filename: string) {
-    const program = ts.createProgram([path.join(__dirname, '../context.d.ts'), filename], {
-      ...(tsConfig.compilerOptions as any),
+    const program = ts.createProgram([path.join(__dirname, '../core/index.d.ts'), filename], {
+      target: ts.ScriptTarget.ES2016,
+      module: ts.ModuleKind.CommonJS,
+      declaration: true,
+      esModuleInterop: true,
+      resolveJsonModule: true,
+      forceConsistentCasingInFileNames: true,
+      strict: true,
+      skipLibCheck: true,
       downlevelIteration: true,
     });
 

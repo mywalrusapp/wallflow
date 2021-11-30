@@ -19,7 +19,7 @@ Enables scheduled triggers either using a **cron** pattern or an **interval** to
 ### Usage
 
 ```typescript
-import Scheduler from '@wallflow/plugins/Scheduler';
+import Scheduler from 'wallflow/plugins/Scheduler';
 
 workflow
   .register('SchedulerExample')
