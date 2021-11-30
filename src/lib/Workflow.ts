@@ -1,4 +1,5 @@
 import { Job, JobsOptions, Queue, QueueEvents, QueueScheduler, Worker, WorkerOptions } from 'bullmq';
+import { MessageManager } from './MessageManager';
 import { InitTrigger, Trigger } from './PluginBase';
 import { WorkflowManager } from './WorkflowManager';
 
@@ -69,8 +70,10 @@ export class Workflow {
       const triggerData = trigger(this);
       this.triggers.set(triggerData.triggerId, { trigger: triggerData, callback });
       triggerData.addTrigger();
+      MessageManager.subscribe(this.name, triggerData.triggerId);
     } else {
       this.triggers.set(trigger, { callback });
+      MessageManager.subscribe(this.name, trigger);
     }
     return this;
   }

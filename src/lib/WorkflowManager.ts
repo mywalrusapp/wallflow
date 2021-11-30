@@ -21,7 +21,9 @@ interface WorkflowManagerOptions {
 const contextDefaults = {
   sleep: (delay: number) => new Promise((resolve) => setTimeout(resolve, delay)),
   require: (path: string) => {
-    if (!path.startsWith('@wallflow/plugins/')) {
+    if (path.startsWith('@wallflow/core')) {
+      return {};
+    } else if (!path.startsWith('@wallflow/plugins/')) {
       throw new Error(`Module "${path}" is not permitted: Only plugins can be imported in workflows.`);
     }
     return PluginManager.use(path.replace(/^@wallflow\/plugins\//, ''));
@@ -50,7 +52,7 @@ export abstract class WorkflowManager {
       this.webServer.register(serverAdapter.registerPlugin(), { basePath: '/', prefix: bullBoardBasePath });
       this.bullBoard = createBullBoard({ queues: [], serverAdapter });
 
-      await this.webServer.listen(bullBoardPort);
+      await this.webServer.listen(bullBoardPort, '0.0.0.0');
       console.info(`🎯 BullBoard running on http://localhost:${bullBoardPort}${bullBoardBasePath}`);
     }
 

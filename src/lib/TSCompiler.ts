@@ -4,7 +4,7 @@ import tsConfig from '../../tsconfig.json';
 
 export abstract class TSCompiler {
   public static compile(filename: string) {
-    const program = ts.createProgram([path.join(__dirname, '../WorkflowGlobal.d.ts'), filename], {
+    const program = ts.createProgram([path.join(__dirname, '../context.d.ts'), filename], {
       ...(tsConfig.compilerOptions as any),
       downlevelIteration: true,
     });

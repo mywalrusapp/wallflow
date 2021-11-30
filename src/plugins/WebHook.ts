@@ -76,7 +76,7 @@ class WebHook extends PluginBase {
     const port = process.env.WEBHOOKS_PORT ?? 8081;
 
     this.server.all(`${basePath}/*`, this.handler.bind(this));
-    this.server.listen(port, (err) => {
+    this.server.listen(port, '0.0.0.0', (err) => {
       if (err) {
         this.server.log.error(err);
       }

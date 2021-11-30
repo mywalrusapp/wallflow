@@ -31,6 +31,9 @@
     "fastify": "^3.24.0",
     "fastify-cors": "^6.0.2",
     "fs-extra": "^10.0.0",
-    "typescript.api": "^0.7.7"
+    "mqtt": "^4.2.8",
+    "typescript.api": "^0.7.7",
+    "websocket-stream": "^5.5.2",
+    "ws": "^8.3.0"
   }
 }
