@@ -12,5 +12,7 @@ RUN yarn
 
 # RUN yarn cache clean
 # RUN yarn install --production
+RUN mkdir -p /app/workflows
+
 
 CMD [ "node_modules/.bin/ts-node", "/app/src/index.ts" ]
