@@ -137,13 +137,13 @@ yargs(hideBin(process.argv))
   )
 
   .command(
-    'trigger <workflowName> <triggerId> <payload>',
+    'trigger <workflowName> <triggerId> [payload]',
     'emit a trigger WallFlow server',
     (yargs) =>
       yargs
         .positional('workflowName', { type: 'string', describe: 'Workflow name to trigger', demandOption: true })
         .positional('triggerId', { type: 'string', describe: 'Trigger id of the workflow to trigger', demandOption: true })
-        .positional('payload', { type: 'string', describe: 'Payload to send in the trigger', demandOption: true }),
+        .positional('payload', { type: 'string', describe: 'Payload to send in the trigger' }),
     async (argv) => {
       verbose = Boolean(argv.verbose);
 
@@ -153,7 +153,7 @@ yargs(hideBin(process.argv))
         const result = await sendMessage({
           topic: `trigger/${argv.workflowName}:${argv.triggerId}`,
           resultTopic: `result/${argv.workflowName}:${argv.triggerId}`,
-          payload: argv.payload,
+          payload: argv.payload ?? '',
           host: argv.host,
           port: argv.port,
           username: argv.username,
