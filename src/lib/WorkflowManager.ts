@@ -5,11 +5,14 @@ import { WorkerOptions } from 'bullmq';
 import fastify, { FastifyInstance } from 'fastify';
 import fse from 'fs-extra';
 import path from 'path';
+import ts from 'typescript';
 import vm from 'vm';
 import { PluginManager } from './PluginManager';
 import { TSCompiler } from './TSCompiler';
-import { Watcher } from './Watcher';
+import { getWorkflowName } from './utils';
 import { Workflow } from './Workflow';
+
+const ALLOWED_EXT = ['.ts'];
 
 interface WorkflowManagerOptions {
   workflowsPath: string;
@@ -20,28 +23,32 @@ interface WorkflowManagerOptions {
 
 const contextDefaults = {
   sleep: (delay: number) => new Promise((resolve) => setTimeout(resolve, delay)),
-  require: (path: string) => {
-    if (path.startsWith('wallflow/core')) {
+  require: (file: string) => {
+    if (file.startsWith('wallflow/core')) {
       return {};
-    } else if (!path.startsWith('wallflow/plugins/')) {
-      throw new Error(`Module "${path}" is not permitted: Only plugins can be imported in workflows.`);
+    } else if (!file.startsWith('wallflow/plugins/')) {
+      throw new Error(`Module "${file}" is not permitted: Only plugins can be imported in workflows.`);
     }
-    return PluginManager.use(path.replace(/^wallflow\/plugins\//, ''));
+    return PluginManager.use(file.replace(/^wallflow\/plugins\//, ''));
   },
   exports: {},
   console,
 };
 
 export abstract class WorkflowManager {
+  private static defaultOptions: WorkerOptions;
   private static workflows = new Map<string, Workflow>();
   private static webServer?: FastifyInstance;
   private static bullBoard?: ReturnType<typeof createBullBoard>;
 
   public static async init({ workflowsPath, host = 'localhost:6379', concurrency = 3, bullBoard = {} }: WorkflowManagerOptions) {
     const [redisHost, redisPort = '6379'] = host.split(':');
-    const connection = { host: redisHost, port: redisPort };
+    this.defaultOptions = {
+      connection: { host: redisHost, port: redisPort },
+      concurrency,
+    };
 
-    //TODO: move this out to its own static class
+    //TODO: move this out to its own static class?
     if (bullBoard?.enabled) {
       const bullBoardBasePath = bullBoard.basePath ?? '/ui';
       const bullBoardPort = bullBoard.port ?? 8080;
@@ -56,21 +63,18 @@ export abstract class WorkflowManager {
       console.info(`🎯 BullBoard running on http://localhost:${bullBoardPort}${bullBoardBasePath}`);
     }
 
-    await Watcher.watch(workflowsPath, ['.ts'], async (filename) => {
+    const files = await fse.readdir(workflowsPath);
+    for (const filename of files) {
+      if (!ALLOWED_EXT.includes(path.extname(filename))) {
+        continue;
+      }
       try {
-        await this.removeWorkflowsFor(path.join(workflowsPath, filename));
-
-        const workflow = await this.loadWorkflowFile(path.join(workflowsPath, filename), { connection, concurrency });
-        const workflowName = workflow['workflowName'];
-        this.workflows.set(workflowName, workflow);
-        if (workflow['queue']) {
-          this.bullBoard?.addQueue(new BullMQAdapter(workflow['queue']));
-        }
-        console.info(`loaded workflow "${workflowName}"`);
+        const workflow = await this.loadWorkflowFile(path.join(workflowsPath, filename));
+        console.info(`loaded workflow "${workflow.name}"`);
       } catch (err: any) {
         console.error(`unable to load workflow ${filename}: ${err.message}`);
       }
-    });
+    }
   }
 
   public static async stop() {
@@ -90,36 +94,62 @@ export abstract class WorkflowManager {
     console.info('done');
   }
 
-  private static async loadWorkflowFile(workflowFilename: string, options: WorkerOptions) {
+  public static async loadWorkflowFile(workflowFilename: string, options: WorkerOptions = {}) {
     if (!fse.existsSync(workflowFilename)) {
       throw new Error('file does not exist');
     }
 
-    const contents = await TSCompiler.compile(workflowFilename);
-    const script = new vm.Script(contents);
+    const contents = await TSCompiler.compile(workflowFilename, {
+      target: ts.ScriptTarget.ES2016,
+      module: ts.ModuleKind.CommonJS,
+      sourceMap: false,
+      checkJs: false,
+      esModuleInterop: true,
+      resolveJsonModule: true,
+      forceConsistentCasingInFileNames: true,
+      strict: true,
+      skipLibCheck: true,
+      downlevelIteration: true,
+      paths: {
+        'wallflow/core': [path.join(__dirname, '../core/index.d.ts')],
+        'wallflow/plugins/*': [path.join(__dirname, '../plugins/*')],
+      },
+    });
 
-    const workflow = new Workflow(workflowFilename, options);
+    const workflowName = getWorkflowName(contents);
+    if (!workflowName) {
+      throw new Error('workflow.register() must be called');
+    }
+
+    const script = new vm.Script(contents);
+    await this.removeWorkflow(workflowName);
+
+    const workflow = new Workflow(workflowFilename, { ...this.defaultOptions, ...options });
     script.runInNewContext({ ...contextDefaults, workflow });
+
+    this.workflows.set(workflow.name, workflow);
+
+    if (workflow['queue']) {
+      this.bullBoard?.addQueue(new BullMQAdapter(workflow['queue']));
+    }
+
     return workflow;
   }
 
-  private static async removeWorkflowsFor(filename: string) {
-    for (const [name, workflow] of this.workflows.entries()) {
-      if (filename === workflow['workflowFilename']) {
-        if (workflow['queue']) {
-          this.bullBoard?.removeQueue(new BullMQAdapter(workflow['queue']));
-        }
-        this.workflows.delete(name);
-        await workflow.destroy();
-        console.info(`cleaning up workflow ${name}`);
-      }
+  public static async removeWorkflow(workflowName: string) {
+    const workflow = this.workflows.get(workflowName);
+    if (!workflow) {
+      return;
     }
+    if (workflow['queue']) {
+      this.bullBoard?.removeQueue(new BullMQAdapter(workflow['queue']));
+    }
+    this.workflows.delete(workflowName);
+    await workflow.destroy();
+    console.info(`cleaning up workflow ${workflowName}`);
   }
 
   public static get(name: string) {
-    if (!this.workflows.has(name)) {
-      throw new Error(`workflow "${name}" does not exist`);
-    }
     return this.workflows.get(name);
   }
 }

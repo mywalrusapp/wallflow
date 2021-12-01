@@ -38,6 +38,7 @@ async function main() {
       port: mqttPort,
       username: mqttUsername,
       password: mqttPassword,
+      workflowsPath,
     });
 
     console.info('\nloading plugins...');

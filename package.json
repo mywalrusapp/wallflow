@@ -1,17 +1,22 @@
 {
   "name": "wallflow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "index.js",
   "license": "MIT",
+  "bin": {
+    "wallflow": "./dist/bin/wallflow.js"
+  },
   "scripts": {
     "start": "nodemon -w src -x ts-node ./src/index.ts",
     "clean": "rm -rf dist/*",
-    "build": "yarn clean && tsc && mkdir -p dist/core && cp src/core/index.d.ts dist/core/index.d.ts",
-    "release": "yarn build && ln -s package.json dist && yarn --cwd dist publish"
+    "build": "yarn clean && tsc",
+    "build:post": "mkdir -p dist/core && cp src/core/index.d.ts dist/core/index.d.ts && chmod a+x dist/bin/wallflow.js",
+    "release": "yarn build && yarn build:post && ln -s $(pwd)/package.json dist && yarn --cwd dist publish"
   },
   "devDependencies": {
     "@types/fs-extra": "^9.0.13",
     "@types/node": "^16.11.9",
+    "@types/yargs": "^17.0.7",
     "@typescript-eslint/eslint-plugin": "^5.4.0",
     "@typescript-eslint/parser": "^5.4.0",
     "eslint": "^8.3.0",
@@ -37,6 +42,7 @@
     "mqtt": "^4.2.8",
     "typescript.api": "^0.7.7",
     "websocket-stream": "^5.5.2",
-    "ws": "^8.3.0"
+    "ws": "^8.3.0",
+    "yargs": "^17.2.1"
   }
 }

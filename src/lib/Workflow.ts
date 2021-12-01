@@ -16,13 +16,13 @@ export class Workflow {
   private queueScheduler?: QueueScheduler;
   private worker?: Worker;
   private workflowName = '';
-  private workflowFilename: string;
+  private filename: string;
   private options: WorkerOptions;
   private triggers = new Map<string, { trigger?: Trigger; callback: TriggerCallback }>();
   private errorCallbacks: ErrorCallback[] = [];
 
   constructor(workflowFilename: string, options: WorkerOptions) {
-    this.workflowFilename = workflowFilename;
+    this.filename = workflowFilename;
     this.options = options;
   }
 
@@ -83,7 +83,11 @@ export class Workflow {
   }
 
   public use(workflowName: string) {
-    return WorkflowManager.get(workflowName);
+    const workflow = WorkflowManager.get(workflowName);
+    if (!workflow) {
+      throw new Error(`workflow "${workflowName}" does not exist`);
+    }
+    return workflow;
   }
 
   public async trigger<T = unknown>(triggerId: string, data?: T, options?: TriggerOptions) {
@@ -115,6 +119,7 @@ export class Workflow {
     }
 
     this.triggers.clear();
+    await this.queue?.drain();
     await this.queue?.close();
     await this.eventQueue?.close();
     await this.queueScheduler?.close();
