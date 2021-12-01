@@ -147,9 +147,9 @@ yargs(hideBin(process.argv))
     async (argv) => {
       verbose = Boolean(argv.verbose);
 
-      console.info(`triggering workflow "${argv.workflowName}" "${argv.triggerId}"...`);
       try {
-        console.info('done!');
+        console.info(`triggered workflow "${argv.workflowName}" "${argv.triggerId}"`);
+        console.info('waiting for response:');
         const result = await sendMessage({
           topic: `trigger/${argv.workflowName}:${argv.triggerId}`,
           resultTopic: `result/${argv.workflowName}:${argv.triggerId}`,
@@ -160,7 +160,6 @@ yargs(hideBin(process.argv))
           password: argv.password,
           timeout: 5000,
         });
-        console.info('response:');
         console.info(JSON.stringify(result, null, 2));
       } catch (err: any) {
         console.error(err.message);
