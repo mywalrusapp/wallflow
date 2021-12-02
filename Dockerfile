@@ -9,10 +9,11 @@ COPY package.json /app/package.json
 COPY tsconfig.json /app/tsconfig.json
 
 RUN yarn
+RUN yarn build
+RUN rm -Rf src
+RUN yarn cache clean
 
-# RUN yarn cache clean
 # RUN yarn install --production
 RUN mkdir -p /app/workflows
 
-
-CMD [ "node_modules/.bin/ts-node", "/app/src/index.ts" ]
+CMD [ "node", "/app/dist/index.js" ]

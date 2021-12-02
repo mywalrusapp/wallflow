@@ -16,6 +16,10 @@ export abstract class PluginManager {
     for (const pluginPath of pluginPaths) {
       const files = await fse.readdir(pluginPath);
       for (const file of files) {
+        const fileExt = file.substr(file.indexOf('.'));
+        if (!['.ts', '.js'].includes(fileExt)) {
+          continue;
+        }
         const stat = fse.statSync(path.join(pluginPath, file));
         if (stat.isDirectory()) {
           await this.loadPluginDirectories([path.join(pluginPath, file)]);
