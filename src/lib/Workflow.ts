@@ -70,10 +70,10 @@ export class Workflow {
       const triggerData = trigger(this);
       this.triggers.set(triggerData.triggerId, { trigger: triggerData, callback });
       triggerData.addTrigger();
-      MessageManager.subscribe(this.name, triggerData.triggerId);
+      MessageManager.subscribe(this.name, triggerData.triggerId, callback);
     } else {
       this.triggers.set(trigger, { callback });
-      MessageManager.subscribe(this.name, trigger);
+      MessageManager.subscribe(this.name, trigger, callback);
     }
     return this;
   }
@@ -116,7 +116,7 @@ export class Workflow {
   public async destroy() {
     for (const [triggerId, triggerData] of this.triggers.entries()) {
       await triggerData.trigger?.removeTrigger();
-      MessageManager.unsubscribe(this.name, triggerId);
+      MessageManager.unsubscribe(this.name, triggerId, triggerData.callback);
     }
 
     this.triggers.clear();
