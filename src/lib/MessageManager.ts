@@ -114,4 +114,8 @@ export abstract class MessageManager {
   public static subscribe(workflowName: string, triggerId: string) {
     this.client.subscribe(`trigger/${workflowName}:${triggerId}`);
   }
+
+  public static unsubscribe(workflowName: string, triggerId: string) {
+    this.client.unsubscribe(`trigger/${workflowName}:${triggerId}`);
+  }
 }

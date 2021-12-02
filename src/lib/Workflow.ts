@@ -114,8 +114,9 @@ export class Workflow {
   }
 
   public async destroy() {
-    for (const triggerData of this.triggers.values()) {
+    for (const [triggerId, triggerData] of this.triggers.entries()) {
       await triggerData.trigger?.removeTrigger();
+      MessageManager.unsubscribe(this.name, triggerId);
     }
 
     this.triggers.clear();
