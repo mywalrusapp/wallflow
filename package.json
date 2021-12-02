@@ -1,6 +1,6 @@
 {
   "name": "wallflow",
-  "version": "0.1.5",
+  "version": "0.1.4",
   "main": "index.js",
   "license": "MIT",
   "bin": {
@@ -12,7 +12,8 @@
     "clean": "rm -rf dist/*",
     "build": "yarn clean && tsc",
     "build:post": "mkdir -p dist/core && cp src/core/index.d.ts dist/core/index.d.ts && chmod a+x dist/bin/wallflow.js",
-    "release": "yarn build && yarn build:post && yarn version && cp $(pwd)/package.json dist/ && npm --cwd dist publish"
+    "release": "yarn release:pre && yarn --cwd dist --non-interactive --no-git-tag-version publish",
+    "release:pre": "yarn build && yarn build:post && yarn version && cp $(pwd)/package.json dist/"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",
