@@ -21,19 +21,18 @@ type Plugin<T, O> = T & {
   (options?: O): InitTrigger;
 };
 
+const errorCallback = (message: string) => () => {
+  throw new Error(message);
+};
+
 /**
  * Plugin wrapper to allow plugins to be used as triggers.
  */
-export const DeclarePlugin = <T extends PluginBase, O = unknown>(plugin: T): Plugin<T, O> => {
+// eslint-disable-next-line @typescript-eslint/ban-types
+export const DeclarePlugin = <T extends {}, O = unknown>(plugin: T): Plugin<T, O> => {
   const pluginTrigger = (options?: O): InitTrigger => {
-    const addTrigger = plugin['addTrigger'];
-    const removeTrigger = plugin['removeTrigger'];
-
-    if (!addTrigger) {
-      throw new Error('Plugin does not support triggers');
-    } else if (!removeTrigger) {
-      throw new Error('Plugin is missing "removeTrigger()" method');
-    }
+    const addTrigger = (plugin as PluginBase)['addTrigger'] ?? errorCallback('Plugin does not support triggers');
+    const removeTrigger = (plugin as PluginBase)['removeTrigger'] ?? errorCallback('Plugin is missing "removeTrigger()" method');
 
     return (workflow) => {
       const triggerId = `${plugin.constructor.name}-${workflow.name}-${randomUUID()}`;
