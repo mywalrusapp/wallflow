@@ -17,10 +17,10 @@
     "start": "nodemon -w src -x ts-node ./src/index.ts",
     "test": "jest",
     "clean": "rm -rf dist/*",
-    "build": "yarn clean && tsc",
+    "build": "yarn clean && tsc && yarn build:post",
     "build:post": "mkdir -p dist/core && cp src/core/index.d.ts dist/core/index.d.ts && chmod a+x dist/bin/wallflow.js",
     "release": "yarn release:pre && yarn --cwd dist --non-interactive --no-git-tag-version publish",
-    "release:pre": "yarn build && yarn build:post && yarn version && cp $(pwd)/package.json dist/ && cp $(pwd)/README.md dist/"
+    "release:pre": "yarn build && yarn version && cp $(pwd)/package.json dist/ && cp $(pwd)/README.md dist/"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.16.4",
