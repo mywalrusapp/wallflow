@@ -53,30 +53,32 @@ async function main() {
     });
   } catch (err) {
     console.error('Unhandled error:', err);
+    MessageManager.stop();
+    WorkflowManager.stop();
+    process.exit(1);
   }
 }
 
 let isShuttingDown = false;
-process.on('SIGTERM', async () => {
+const shutdown = async () => {
+  isShuttingDown = true;
+  // force exit if longer than 10 seconds
+  const timerId = setTimeout(() => process.exit(), 10 * 1000);
   console.log('Shutting down server...');
+  MessageManager.stop();
   await WorkflowManager.stop();
+  clearTimeout(timerId);
   process.exit();
-});
+};
 
+process.on('SIGTERM', async () => shutdown());
 process.on('SIGUSR2', async () => {
   if (isShuttingDown) return;
-  console.log('Shutting down server...');
-  isShuttingDown = true;
-  await WorkflowManager.stop();
-  process.exit();
+  shutdown();
 });
-
 process.on('SIGINT', async () => {
   if (isShuttingDown) return;
-  console.log('hutting down server...');
-  isShuttingDown = true;
-  await WorkflowManager.stop();
-  process.exit();
+  shutdown();
 });
 
 main();

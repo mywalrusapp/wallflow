@@ -58,7 +58,15 @@ export class Workflow {
     if (!triggerData) {
       throw new Error(`No processor for ${job.name}`);
     }
-    return await triggerData.callback(job);
+    try {
+      const result = await triggerData.callback(job);
+      job.updateProgress(100);
+      MessageManager.emit(`result/${this.name}:${triggerData.trigger?.triggerId ?? job.name}`, result);
+      return result;
+    } catch (err: any) {
+      MessageManager.emit(`result/${this.name}:${triggerData.trigger?.triggerId ?? job.name}`, { status: 'error', message: err.message });
+      throw err;
+    }
   }
 
   public on(trigger: InitTrigger | string, callback: TriggerCallback) {
@@ -70,10 +78,13 @@ export class Workflow {
       const triggerData = trigger(this);
       this.triggers.set(triggerData.triggerId, { trigger: triggerData, callback });
       triggerData.addTrigger();
-      MessageManager.subscribe(this.name, triggerData.triggerId, callback);
+      MessageManager.subscribe(
+        `trigger/${this.name}:${triggerData.triggerId}`,
+        this.handleIncomingTriggerMessage.bind(this, triggerData.triggerId),
+      );
     } else {
       this.triggers.set(trigger, { callback });
-      MessageManager.subscribe(this.name, trigger, callback);
+      MessageManager.subscribe(`trigger/${this.name}:${trigger}`, this.handleIncomingTriggerMessage.bind(this, trigger));
     }
     return this;
   }
@@ -101,6 +112,10 @@ export class Workflow {
     return job;
   }
 
+  private async handleIncomingTriggerMessage(triggerId: string, data: unknown) {
+    return await this.trigger(triggerId, data);
+  }
+
   public async removeScheduledTrigger(triggerId: string) {
     if (!this.queue) {
       throw new Error('Workflow is not initialized. Did you forget call workflow.register()?');
@@ -116,7 +131,7 @@ export class Workflow {
   public async destroy() {
     for (const [triggerId, triggerData] of this.triggers.entries()) {
       await triggerData.trigger?.removeTrigger();
-      MessageManager.unsubscribe(this.name, triggerId, triggerData.callback);
+      MessageManager.unsubscribe(`trigger/${this.name}:${triggerId}`);
     }
 
     this.triggers.clear();
@@ -124,6 +139,6 @@ export class Workflow {
     await this.queue?.close();
     await this.eventQueue?.close();
     await this.queueScheduler?.close();
-    await this.worker?.close();
+    await this.worker?.close(true);
   }
 }

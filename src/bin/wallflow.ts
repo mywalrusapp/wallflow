@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 import { randomUUID } from 'crypto';
 import fse from 'fs-extra';
-import mqtt from 'mqtt';
 import path from 'path';
 import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs/yargs';
-import { safeToJSON } from '../lib/utils';
+import { WallFlowClient } from '../client';
 
 const CONNECTION_TIMEOUT = 15 * 1000; // 15 seconds
 const RESPONSE_TIMEOUT = 60 * 1000; // 60 seconds
@@ -18,8 +17,8 @@ const print = (...args: any[]) => {
 
 interface SendMessageOptions {
   topic: string;
-  resultTopic: string;
-  payload: string;
+  replyTopic: string;
+  payload: any;
   host: string;
   port: number;
   username: string | undefined;
@@ -33,29 +32,24 @@ const sendMessage = (options: SendMessageOptions) =>
     print(`  connecting to ${options.host}:${options.port}... `);
 
     timerId = setTimeout(() => reject(new Error('error: connection timeout')), CONNECTION_TIMEOUT);
-    const client = mqtt.connect(`mqtt://${options.host}`, { port: options.port, username: options.username, password: options.password });
+    const client = new WallFlowClient({ host: options.host, port: options.port, username: options.username, password: options.password });
 
-    client.on('connect', () => {
+    client.onConnect(async () => {
       print('ok\n');
       print(`  sending ${options.topic}... ok\n`);
-      client.publish(options.topic, options.payload);
       print(`  waiting for response... `);
+      const response = await client.trigger(options.topic, options.payload, { wait: true, replyTopic: options.replyTopic });
+      print(`ok\n`);
+      clearTimeout(timerId);
+      client.disconnect();
+      resolve(response);
       clearTimeout(timerId);
       timerId = setTimeout(() => reject(new Error('error: response timeout')), options.timeout ?? RESPONSE_TIMEOUT);
     });
 
-    client.on('error', (err) => {
+    client.onError((err) => {
       reject(new Error(`Unexpected error: ${err.message}`));
     });
-
-    client.on('message', (topic, message) => {
-      print(`ok\n`);
-      clearTimeout(timerId);
-      const data = safeToJSON(message.toString('utf8'));
-      client.end();
-      resolve(data);
-    });
-    client.subscribe(options.resultTopic);
   });
 
 yargs(hideBin(process.argv))
@@ -64,6 +58,7 @@ yargs(hideBin(process.argv))
   .option('username', { alias: 'u', type: 'string', description: 'Provide a username to login to the server' })
   .option('password', { alias: 'P', type: 'string', description: "Prompts for user's password" })
   .option('verbose', { alias: 'v', type: 'boolean', default: false, description: 'Run with verbose logging' })
+  .demandCommand(1)
   .command(
     'deploy <workflow-file>',
     'deploy a workflow to WallFlow server',
@@ -87,8 +82,8 @@ yargs(hideBin(process.argv))
       try {
         const result = await sendMessage({
           topic: 'deploy/workflow',
-          resultTopic: `result/deploy/workflow:${uuid}`,
-          payload: JSON.stringify({ uuid, data, filename }),
+          replyTopic: `result/deploy/workflow:${uuid}`,
+          payload: { uuid, data, filename },
           host: argv.host,
           port: argv.port,
           username: argv.username,
@@ -103,6 +98,7 @@ yargs(hideBin(process.argv))
         process.exit(1);
       }
       console.info('deploy complete!');
+      process.exit();
     },
   )
 
@@ -117,7 +113,7 @@ yargs(hideBin(process.argv))
       try {
         const result = await sendMessage({
           topic: 'delete/workflow',
-          resultTopic: `result/delete/workflow:${argv.workflowId}`,
+          replyTopic: `result/delete/workflow:${argv.workflowId}`,
           payload: argv.workflowId,
           host: argv.host,
           port: argv.port,
@@ -133,6 +129,7 @@ yargs(hideBin(process.argv))
         process.exit(1);
       }
       console.info('done!');
+      process.exit();
     },
   )
 
@@ -152,7 +149,7 @@ yargs(hideBin(process.argv))
         console.info('waiting for response:');
         const result = await sendMessage({
           topic: `trigger/${argv.workflowName}:${argv.triggerId}`,
-          resultTopic: `result/${argv.workflowName}:${argv.triggerId}`,
+          replyTopic: `result/${argv.workflowName}:${argv.triggerId}`,
           payload: argv.payload ?? '',
           host: argv.host,
           port: argv.port,
@@ -161,6 +158,7 @@ yargs(hideBin(process.argv))
           timeout: 5000,
         });
         console.info(JSON.stringify(result, null, 2));
+        process.exit();
       } catch (err: any) {
         console.error(err.message);
         process.exit(1);

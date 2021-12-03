@@ -48,27 +48,6 @@ export abstract class MessageManager {
     });
   }
 
-  // private static async handleTrigger(topic: string, message: Buffer) {
-  //   const index1 = topic.indexOf('/');
-  //   const index2 = topic.indexOf(':', index1);
-  //   const [action, workflowName, triggerId] = [topic.slice(0, index1), topic.slice(index1 + 1, index2), topic.slice(index2 + 1)];
-
-  //   if (action !== 'trigger' || !workflowName || !triggerId) {
-  //     console.log(`unhandled topic ${topic}`);
-  //     return;
-  //   }
-
-  //   const workflow = WorkflowManager.get(workflowName);
-  //   if (!workflow) {
-  //     return;
-  //   }
-  //   const payload = safeToJSON(message.toString('utf8'));
-  //   console.info('message:', { topic, payload });
-  //   const job = await workflow.trigger(triggerId, payload, { wait: true });
-
-  //   this.client.publish(`result/${workflowName}:${triggerId}`, JSON.stringify(job.returnvalue));
-  // }
-
   private static async handleDeployWorkflow(payload: DeployPayload) {
     const tempPath = `/tmp/wallflow/${payload.uuid}/`;
     // create temp path
@@ -78,6 +57,7 @@ export abstract class MessageManager {
       const contents = Buffer.from(payload.data, 'base64').toString('utf-8');
 
       const workflowName = getWorkflowName(contents);
+      console.info(`incoming deployment for ${workflowName} ${Buffer.byteLength(contents, 'utf8')} bytes`);
       const existingWorkflow = WorkflowManager.get(workflowName);
       const tempFile = path.join(tempPath, `${payload.filename}.ts`);
 
@@ -92,6 +72,7 @@ export abstract class MessageManager {
       }
       this.client.trigger(`result/deploy/workflow:${payload.uuid}`, { status: 'ok' });
     } catch (err: any) {
+      console.error(`deployment error: ${err.message}`);
       this.client.trigger(`result/deploy/workflow:${payload.uuid}`, { status: 'error', message: err.message });
     }
     // clean up temp path
@@ -113,11 +94,19 @@ export abstract class MessageManager {
     }
   }
 
-  public static subscribe(workflowName: string, triggerId: string, callback: Callback) {
-    this.client.on(`trigger/${workflowName}:${triggerId}`, callback);
+  public static subscribe(topic: string, callback: Callback) {
+    this.client.on(topic, callback);
   }
 
-  public static unsubscribe(workflowName: string, triggerId: string, callback: Callback) {
-    this.client.off(`trigger/${workflowName}:${triggerId}`, callback);
+  public static unsubscribe(topic: string, callback?: Callback) {
+    this.client.off(topic, callback);
+  }
+
+  public static emit(topic: string, data: unknown) {
+    this.client.trigger(topic, data);
+  }
+
+  public static stop() {
+    this.client.disconnect();
   }
 }

@@ -10,6 +10,7 @@ export interface WallFlowClientOptions {
 
 interface TriggerOptions {
   wait?: boolean;
+  replyTopic?: string;
 }
 
 export type Callback<T = any> = (data: T) => void;
@@ -69,7 +70,7 @@ export class WallFlowClient {
     return this;
   }
 
-  public off(topic: string, callback: Callback) {
+  public off(topic: string, callback?: Callback) {
     const callbacksArray = this.callbacks.get(topic);
     if (!callbacksArray) {
       return this;
@@ -80,7 +81,7 @@ export class WallFlowClient {
       this.callbacks.set(topic, callbacksArray);
     }
 
-    if (callbacksArray.length === 0) {
+    if (callbacksArray.length === 0 || !callback) {
       this.client.unsubscribe(topic);
       this.callbacks.delete(topic);
     }
@@ -91,12 +92,16 @@ export class WallFlowClient {
     const payload = JSON.stringify(data);
     return new Promise<unknown>((resolve) => {
       if (options?.wait) {
-        this.once(`result/${topic}`, resolve);
+        this.once(options?.replyTopic ? options?.replyTopic : `result/${topic}`, resolve);
       }
-      this.client.publish(`trigger/${topic}`, payload);
+      this.client.publish(topic, payload);
       if (!options?.wait) {
         resolve(undefined);
       }
     });
+  }
+
+  public async disconnect() {
+    this.client.end();
   }
 }

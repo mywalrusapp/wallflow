@@ -8,7 +8,7 @@ Powered by [BullMQ](https://github.com/taskforcesh/bullmq)
 
 ## How it works?
 
-TBD
+![WallFlow Diagram](./docs/images/wallflow-diagram.drawio.png)
 
 ## Supported Plugins
 
