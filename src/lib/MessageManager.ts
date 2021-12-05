@@ -1,29 +1,16 @@
-import fse from 'fs-extra';
-import path from 'path';
 import { Callback, WallFlowClient } from '../client';
-import { getWorkflowName } from './utils';
-import { WorkflowManager } from './WorkflowManager';
 
 interface MessageManagerOptions {
   host?: string;
   port?: number;
   username?: string;
   password?: string;
-  workflowsPath: string;
-}
-
-interface DeployPayload {
-  uuid: string;
-  data: string;
-  filename: string;
 }
 
 export abstract class MessageManager {
-  private static workflowsPath: string;
   private static client: WallFlowClient;
 
-  public static async init({ host = 'localhost', port = 1883, username, password, workflowsPath }: MessageManagerOptions) {
-    this.workflowsPath = workflowsPath;
+  public static async init({ host = 'localhost', port = 1883, username, password }: MessageManagerOptions) {
     return new Promise<void>((resolve) => {
       // connect to mqtt broker
       this.client = new WallFlowClient({ host, port, username, password });
@@ -38,60 +25,7 @@ export abstract class MessageManager {
         .onError((err) => {
           console.error(`MessageManager: ${err.message}`);
         });
-
-      this.client.on<DeployPayload>('deploy/workflow', (data) => {
-        this.handleDeployWorkflow(data);
-      });
-      this.client.on<string>('delete/workflow', (data) => {
-        this.handleDeleteWorkflow(data);
-      });
     });
-  }
-
-  private static async handleDeployWorkflow(payload: DeployPayload) {
-    const tempPath = `/tmp/wallflow/${payload.uuid}/`;
-    // create temp path
-    fse.mkdirpSync(tempPath);
-
-    try {
-      const contents = Buffer.from(payload.data, 'base64').toString('utf-8');
-
-      const workflowName = getWorkflowName(contents);
-      console.info(`incoming deployment for ${workflowName} ${Buffer.byteLength(contents, 'utf8')} bytes`);
-      const existingWorkflow = WorkflowManager.get(workflowName);
-      const tempFile = path.join(tempPath, `${payload.filename}.ts`);
-
-      fse.writeFileSync(tempFile, contents);
-      const workflow = await WorkflowManager.loadWorkflowFile(tempFile);
-      workflow['filename'] = path.join(this.workflowsPath, payload.filename);
-      fse.moveSync(tempFile, path.join(this.workflowsPath, payload.filename), { overwrite: true });
-      console.info(`${existingWorkflow ? 'updated' : 'loaded'} workflow "${workflow.name}"`);
-
-      if (existingWorkflow && path.basename(existingWorkflow['filename']) !== payload.filename) {
-        fse.removeSync(existingWorkflow['filename']);
-      }
-      this.client.trigger(`result/deploy/workflow:${payload.uuid}`, { status: 'ok' });
-    } catch (err: any) {
-      console.error(`deployment error: ${err.message}`);
-      this.client.trigger(`result/deploy/workflow:${payload.uuid}`, { status: 'error', message: err.message });
-    }
-    // clean up temp path
-    fse.removeSync(tempPath);
-  }
-
-  private static handleDeleteWorkflow(workflowName: string) {
-    try {
-      const workflow = WorkflowManager.get(workflowName);
-      if (!workflow) {
-        throw new Error('workflow does not exist');
-      }
-      WorkflowManager.removeWorkflow(workflowName);
-      fse.removeSync(workflow['filename']);
-      console.info(`deleted workflow "${workflow.name}"`);
-      this.client.trigger(`result/delete/workflow:${workflowName}`, { status: 'ok' });
-    } catch (err: any) {
-      this.client.trigger(`result/delete/workflow:${workflowName}`, { status: 'error', message: err.message });
-    }
   }
 
   public static subscribe(topic: string, callback: Callback) {

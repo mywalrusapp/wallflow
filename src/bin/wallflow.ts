@@ -1,13 +1,10 @@
 #!/usr/bin/env node
+import axios from 'axios';
 import { randomUUID } from 'crypto';
 import fse from 'fs-extra';
 import path from 'path';
 import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs/yargs';
-import { WallFlowClient } from '../client';
-
-const CONNECTION_TIMEOUT = 15 * 1000; // 15 seconds
-const RESPONSE_TIMEOUT = 60 * 1000; // 60 seconds
 
 let verbose = false;
 const print = (...args: any[]) => {
@@ -15,44 +12,8 @@ const print = (...args: any[]) => {
   process.stdout.write(args.map((arg) => arg.toString()).join(' '));
 };
 
-interface SendMessageOptions {
-  topic: string;
-  replyTopic: string;
-  payload: any;
-  host: string;
-  port: number;
-  username: string | undefined;
-  password: string | undefined;
-  timeout?: number;
-}
-
-let timerId: NodeJS.Timeout;
-const sendMessage = (options: SendMessageOptions) =>
-  new Promise<any>((resolve, reject) => {
-    print(`  connecting to ${options.host}:${options.port}... `);
-
-    timerId = setTimeout(() => reject(new Error('error: connection timeout')), CONNECTION_TIMEOUT);
-    const client = new WallFlowClient({ host: options.host, port: options.port, username: options.username, password: options.password });
-
-    client.onConnect(async () => {
-      print('ok\n');
-      print(`  sending ${options.topic}... ok\n`);
-      print(`  waiting for response... `);
-      const response = await client.trigger(options.topic, options.payload, { wait: true, replyTopic: options.replyTopic });
-      print(`ok\n`);
-      clearTimeout(timerId);
-      client.disconnect();
-      resolve(response);
-      clearTimeout(timerId);
-      timerId = setTimeout(() => reject(new Error('error: response timeout')), options.timeout ?? RESPONSE_TIMEOUT);
-    });
-
-    client.onError((err) => {
-      reject(new Error(`Unexpected error: ${err.message}`));
-    });
-  });
-
 yargs(hideBin(process.argv))
+  .option('ssl', { alias: 's', type: 'boolean', default: false, description: 'Set whether to send data via SSL or not' })
   .option('host', { alias: 'h', type: 'string', default: 'localhost', description: 'Set the target server host' })
   .option('port', { alias: 'p', type: 'number', default: 1883, description: 'Set the target server port' })
   .option('username', { alias: 'u', type: 'string', description: 'Provide a username to login to the server' })
@@ -80,18 +41,15 @@ yargs(hideBin(process.argv))
 
       console.info('deploying workflow...');
       try {
-        const result = await sendMessage({
-          topic: 'deploy/workflow',
-          replyTopic: `result/deploy/workflow:${uuid}`,
-          payload: { uuid, data, filename },
-          host: argv.host,
-          port: argv.port,
-          username: argv.username,
-          password: argv.password,
-        });
+        const form = new FormData();
+        form.set('uuid', uuid);
+        form.set('file', data, filename);
 
-        if (result.status !== 'ok') {
-          throw new Error(`error: ${result.message ?? result}`);
+        print('sending request...');
+        const result = await axios.post(`${argv.ssl ? 'https' : 'http'}://${argv.host}/workflow/deploy`, form);
+
+        if (result.data.status !== 'ok') {
+          throw new Error(`error: ${result.data.message ?? result}`);
         }
       } catch (err: any) {
         console.error(err.message);
@@ -103,26 +61,19 @@ yargs(hideBin(process.argv))
   )
 
   .command(
-    'delete <workflowId>',
+    'delete <workflowName>',
     'delete a workflow from WallFlow server',
-    (yargs) => yargs.positional('workflowId', { type: 'string', demandOption: true, describe: 'Workflow file to deploy' }),
+    (yargs) => yargs.positional('workflowName', { type: 'string', demandOption: true, describe: 'Workflow file to deploy' }),
     async (argv) => {
       verbose = Boolean(argv.verbose);
 
       console.info('deleting workflow...');
       try {
-        const result = await sendMessage({
-          topic: 'delete/workflow',
-          replyTopic: `result/delete/workflow:${argv.workflowId}`,
-          payload: argv.workflowId,
-          host: argv.host,
-          port: argv.port,
-          username: argv.username,
-          password: argv.password,
-        });
+        print('sending request...');
+        const result = await axios.delete(`${argv.ssl ? 'https' : 'http'}://${argv.host}/workflow/${argv.workflowName}`);
 
-        if (result.status !== 'ok') {
-          throw new Error(`error: ${result.message ?? result}`);
+        if (result.data.status !== 'ok') {
+          throw new Error(`error: ${result.data.message ?? result}`);
         }
       } catch (err: any) {
         console.error(err.message);
@@ -145,19 +96,9 @@ yargs(hideBin(process.argv))
       verbose = Boolean(argv.verbose);
 
       try {
-        console.info(`triggered workflow "${argv.workflowName}" "${argv.triggerId}"`);
-        console.info('waiting for response:');
-        const result = await sendMessage({
-          topic: `trigger/${argv.workflowName}:${argv.triggerId}`,
-          replyTopic: `result/${argv.workflowName}:${argv.triggerId}`,
-          payload: argv.payload ?? '',
-          host: argv.host,
-          port: argv.port,
-          username: argv.username,
-          password: argv.password,
-          timeout: 5000,
-        });
-        console.info(JSON.stringify(result, null, 2));
+        console.info(`triggering workflow "${argv.workflowName}" "${argv.triggerId}"`);
+        const result = await axios.post(`${argv.ssl ? 'https' : 'http'}://${argv.host}/workflow/${argv.workflowName}/${argv.triggerId}`);
+        console.info(JSON.stringify(result.data, null, 2));
         process.exit();
       } catch (err: any) {
         console.error(err.message);

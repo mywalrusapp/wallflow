@@ -22,7 +22,7 @@ const mqttPassword = process.env.MQTT_PASSWORD ? process.env.MQTT_PASSWORD : und
 
 const bullBoardEnabled = process.env.BULL_BOARD_UI ? process.env.BULL_BOARD_UI !== 'false' : false;
 const bullBoardBasePath = process.env.BULL_BOARD_UI ? process.env.BULL_BOARD_BASE_PATH : undefined;
-const bullBoardPort = process.env.BULL_BOARD_PORT ? parseInt(process.env.BULL_BOARD_PORT, 10) : undefined;
+const webserverPort = process.env.WEBSERVER_PORT ? parseInt(process.env.WEBSERVER_PORT, 10) : undefined;
 const maxWorkers = process.env.MAX_WORKERS ? Number(process.env.MAX_WORKERS) : undefined;
 
 async function main() {
@@ -38,7 +38,6 @@ async function main() {
       port: mqttPort,
       username: mqttUsername,
       password: mqttPassword,
-      workflowsPath,
     });
 
     console.info('\nloading plugins...');
@@ -49,7 +48,8 @@ async function main() {
       workflowsPath,
       host: redisHost,
       concurrency: maxWorkers,
-      bullBoard: { enabled: bullBoardEnabled, basePath: bullBoardBasePath, port: bullBoardPort },
+      port: webserverPort,
+      bullBoard: { enabled: bullBoardEnabled, basePath: bullBoardBasePath },
     });
   } catch (err) {
     console.error('Unhandled error:', err);
