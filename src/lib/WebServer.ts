@@ -57,7 +57,7 @@ export class WebServer {
     fse.mkdirpSync(tempPath);
 
     try {
-      const contents = (await data.toBuffer()).toString();
+      const contents = Buffer.from((await data.toBuffer()).toString(), 'base64').toString('utf8');
       const workflowName = getWorkflowName(contents);
       console.info(`incoming deployment for ${workflowName} ${Buffer.byteLength(contents, 'utf8')} bytes`);
       const existingWorkflow = WorkflowManager.get(workflowName);
@@ -86,7 +86,8 @@ export class WebServer {
     try {
       const workflow = WorkflowManager.get(workflowName);
       if (!workflow) {
-        throw new Error('workflow does not exist');
+        res.status(404).send({ status: 'error', message: 'workflow does not exist' });
+        return;
       }
       WorkflowManager.removeWorkflow(workflowName);
       fse.removeSync(workflow['filename']);

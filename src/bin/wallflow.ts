@@ -6,6 +6,7 @@ import fse from 'fs-extra';
 import path from 'path';
 import { hideBin } from 'yargs/helpers';
 import yargs from 'yargs/yargs';
+import { safeToJSON } from '../lib/utils';
 
 let verbose = false;
 const print = (...args: any[]) => {
@@ -16,7 +17,7 @@ const print = (...args: any[]) => {
 yargs(hideBin(process.argv))
   .option('ssl', { alias: 's', type: 'boolean', default: false, description: 'Set whether to send data via SSL or not' })
   .option('host', { alias: 'h', type: 'string', default: 'localhost', description: 'Set the target server host' })
-  .option('port', { alias: 'p', type: 'number', default: 1883, description: 'Set the target server port' })
+  .option('port', { alias: 'p', type: 'number', default: 8080, description: 'Set the target server port' })
   .option('username', { alias: 'u', type: 'string', description: 'Provide a username to login to the server' })
   .option('password', { alias: 'P', type: 'string', description: "Prompts for user's password" })
   .option('verbose', { alias: 'v', type: 'boolean', default: false, description: 'Run with verbose logging' })
@@ -27,6 +28,7 @@ yargs(hideBin(process.argv))
     (yargs) => yargs.positional('workflow-file', { type: 'string', demandOption: true, describe: 'Workflow file to deploy' }),
     async (argv) => {
       verbose = Boolean(argv.verbose);
+      const baseUrl = `${argv.ssl ? 'https' : 'http'}://${argv.host}${argv.port !== 80 ? `:${argv.port}` : ''}`;
 
       const uuid = randomUUID();
       const file = path.join(process.cwd(), argv['workflow-file']);
@@ -44,16 +46,16 @@ yargs(hideBin(process.argv))
       try {
         const form = new FormData();
         form.append('uuid', uuid);
-        form.append('file', data, filename);
+        form.append('file', data, { filename });
 
         print('sending request...');
-        const result = await axios.post(`${argv.ssl ? 'https' : 'http'}://${argv.host}/workflow/deploy`, form);
+        const result = await axios.post(`${baseUrl}/workflow/deploy`, form, { headers: form.getHeaders() });
 
         if (result.data.status !== 'ok') {
           throw new Error(`error: ${result.data.message ?? result}`);
         }
       } catch (err: any) {
-        console.error(err.message);
+        console.error(`error: ${err.response.data.message}`);
         process.exit(1);
       }
       console.info('deploy complete!');
@@ -67,17 +69,18 @@ yargs(hideBin(process.argv))
     (yargs) => yargs.positional('workflowName', { type: 'string', demandOption: true, describe: 'Workflow file to deploy' }),
     async (argv) => {
       verbose = Boolean(argv.verbose);
+      const baseUrl = `${argv.ssl ? 'https' : 'http'}://${argv.host}${argv.port !== 80 ? `:${argv.port}` : ''}`;
 
-      console.info('deleting workflow...');
+      console.info(`deleting workflow "${argv.workflowName}"...`);
       try {
         print('sending request...');
-        const result = await axios.delete(`${argv.ssl ? 'https' : 'http'}://${argv.host}/workflow/${argv.workflowName}`);
+        const result = await axios.delete(`${baseUrl}/workflow/${argv.workflowName}`);
 
         if (result.data.status !== 'ok') {
           throw new Error(`error: ${result.data.message ?? result}`);
         }
       } catch (err: any) {
-        console.error(err.message);
+        console.error(`error: ${err.response.data.message}`);
         process.exit(1);
       }
       console.info('done!');
@@ -95,14 +98,20 @@ yargs(hideBin(process.argv))
         .positional('payload', { type: 'string', describe: 'Payload to send in the trigger' }),
     async (argv) => {
       verbose = Boolean(argv.verbose);
+      const baseUrl = `${argv.ssl ? 'https' : 'http'}://${argv.host}${argv.port !== 80 ? `:${argv.port}` : ''}`;
 
       try {
         console.info(`triggering workflow "${argv.workflowName}" "${argv.triggerId}"`);
-        const result = await axios.post(`${argv.ssl ? 'https' : 'http'}://${argv.host}/workflow/${argv.workflowName}/${argv.triggerId}`);
+        console.log(`${baseUrl}/workflow/${argv.workflowName}/${argv.triggerId}`);
+        const result = await axios.post(
+          `${baseUrl}/workflow/${argv.workflowName}/${argv.triggerId}?wait=true`,
+          argv.payload ? safeToJSON(argv.payload) : null,
+          { headers: { 'Content-Type': 'application/json' } },
+        );
         console.info(JSON.stringify(result.data, null, 2));
         process.exit();
       } catch (err: any) {
-        console.error(err.message);
+        console.error(`error: ${err.response.data.message}`);
         process.exit(1);
       }
     },
