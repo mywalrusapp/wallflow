@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import axios from 'axios';
 import { randomUUID } from 'crypto';
+import FormData from 'form-data';
 import fse from 'fs-extra';
 import path from 'path';
 import { hideBin } from 'yargs/helpers';
@@ -42,8 +43,8 @@ yargs(hideBin(process.argv))
       console.info('deploying workflow...');
       try {
         const form = new FormData();
-        form.set('uuid', uuid);
-        form.set('file', data, filename);
+        form.append('uuid', uuid);
+        form.append('file', data, filename);
 
         print('sending request...');
         const result = await axios.post(`${argv.ssl ? 'https' : 'http'}://${argv.host}/workflow/deploy`, form);
